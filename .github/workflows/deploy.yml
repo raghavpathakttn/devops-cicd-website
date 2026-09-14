@@ -1,0 +1,80 @@
+name: DevOps CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Test Build and Deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      # -------------------------
+      # TEST
+      # -------------------------
+      - name: Test website
+        run: |
+          echo "Running website tests..."
+
+          test -f index.html
+          test -f style.css
+          test -f script.js
+
+          grep -q "DevOps Training" index.html
+
+          echo "All tests passed successfully"
+
+      # -------------------------
+      # BUILD
+      # -------------------------
+      - name: Build website
+        run: |
+          echo "Building website..."
+
+          mkdir -p dist
+
+          cp index.html dist/
+          cp style.css dist/
+          cp script.js dist/
+
+          echo "Build completed successfully"
+
+      # -------------------------
+      # PACKAGE
+      # -------------------------
+      - name: Package website
+        run: |
+          echo "Creating deployment package..."
+
+          zip -r website-build.zip dist/
+
+          echo "Package created successfully"
+
+      # -------------------------
+      # AWS AUTHENTICATION
+      # -------------------------
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      # -------------------------
+      # DEPLOY
+      # -------------------------
+      - name: Deploy website to S3
+        run: |
+          echo "Deploying website to S3..."
+
+          aws s3 sync dist/ s3://${{ vars.S3_BUCKET_NAME }} --delete
+
+          echo "Deployment completed successfully"
